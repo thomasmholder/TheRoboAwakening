@@ -39,7 +39,7 @@ void msd_task(void const *) {
 
 
 int main() {
-    Thread msdTask(msd_task, NULL, osPriorityNormal, (1024+512) * 4);
+    Thread msdTask(msd_task, NULL, osPriorityNormal, 1024 * 4);
     while(1) {
         led=!led;
         Thread::wait(500);
