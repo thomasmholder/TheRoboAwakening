@@ -10,23 +10,30 @@ void msd_task(void const *) {
     
     while(1) {
         
-        // try to connect a USB flash disk
-        while(!msd.connect())
+        // try to connect a MSD device
+        while(!msd.connect()) {
             Thread::wait(500);
-        
-        FILE * fp = fopen("/usb/test.txt", "a");
-        
-        if (fp != NULL) {
-            fprintf(fp, "Hello fun SD Card World: %d!\r\n", i++);
-            printf("Goodbye World!\r\n");
-            fclose(fp);
-        } else {
-            printf("FILE == NULL\r\n");
         }
         
-        // wait until the msd disk is disconnected
-        while(msd.connected())
+        while(1) {
+            
+            FILE * fp = fopen("/usb/test1.txt", "a");
+        
+            if (fp != NULL) {
+                fprintf(fp, "Hello fun SD Card World: %d!\r\n", i++);
+                printf("Goodbye World!\r\n");
+                fclose(fp);
+            } else {
+                printf("FILE == NULL\r\n");
+            }
+            
             Thread::wait(500);
+        
+            // if device disconnected, try to connect again
+            if (!msd.connected())
+                break;
+        }
+            
     }
 }
 
