@@ -15,8 +15,11 @@ void msd_task(void const *) {
             Thread::wait(500);
         }
         
+        // in a loop, append a file
+        // if the device is disconnected, we try to connect it again
         while(1) {
             
+            // append a file
             FILE * fp = fopen("/usb/test1.txt", "a");
         
             if (fp != NULL) {
