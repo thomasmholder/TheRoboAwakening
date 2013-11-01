@@ -1,50 +1,34 @@
 #include "mbed.h"
 #include "USBHostMSD.h"
+#include "wave_player.h"
+//mbed Application board waveplayer demo
+//Plays the wave file "sample.wav" on the USB flash drive
+//Outputs to onboard speaker (but at very low volume)
+//and the Audio Out jack for connection to a set of amplified PC speakers (at higher volume)
+//Needs a USB flash drive inserted with the wav file on it to run
 
-DigitalOut led(LED1);
+//Analog Out Jack
+AnalogOut DACout(p18);
+//On Board Speaker
+PwmOut PWMout(p26);
 
-void msd_task(void const *) {
-    
+wave_player waver(&DACout,&PWMout);
+
+int main()
+{
     USBHostMSD msd("usb");
-    int i = 0;
-    
-    while(1) {
-        
-        // try to connect a MSD device
-        while(!msd.connect()) {
-            Thread::wait(500);
-        }
-        
-        // in a loop, append a file
-        // if the device is disconnected, we try to connect it again
-        while(1) {
-            
-            // append a file
-            FILE * fp = fopen("/usb/test1.txt", "a");
-        
-            if (fp != NULL) {
-                fprintf(fp, "Hello fun SD Card World: %d!\r\n", i++);
-                printf("Goodbye World!\r\n");
-                fclose(fp);
-            } else {
-                printf("FILE == NULL\r\n");
-            }
-            
-            Thread::wait(500);
-        
-            // if device disconnected, try to connect again
-            if (!msd.connected())
-                break;
-        }
-            
-    }
-}
-
-
-int main() {
-    Thread msdTask(msd_task, NULL, osPriorityNormal, 1024 * 4);
-    while(1) {
-        led=!led;
+    FILE *wave_file;
+    //setup PWM hardware for a Class D style audio output
+    PWMout.period(1.0/400000.0);
+    printf("\n\n\nHello, wave world!\n");
+    // wait until connected to a USB device
+    while(!msd.connect()) {
         Thread::wait(500);
     }
+    //open wav file and play it
+    wave_file=fopen("/usb/sample.wav","r");
+    waver.play(wave_file);
+    fclose(wave_file);
+    //end of program
+    while(1) {};
 }
