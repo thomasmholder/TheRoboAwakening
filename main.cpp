@@ -1,6 +1,11 @@
 #include "mbed.h"
-#include "USBHostMSD.h"
+#include "rtos.h"
+#include "SDFileSystem.h"
 #include "wave_player.h"
+
+
+SDFileSystem sd(p5, p6, p7, p8, "sd"); //SD card
+
 //LED lighting effects with sound using the RTOS
 //Plays the wave file "sample.wav" on the USB flash drive
 //using waveplayer code library
@@ -142,26 +147,20 @@ void rrcrossing(void const *args)
     }
 }
 
-//wave player plays a *.wav file to D/A and a PWM
-wave_player waver(&DACout,&PWMout);
+//wave player plays a *.wav file to D/A
+wave_player waver(&DACout);
 
 int main()
 {
-    USBHostMSD msd("usb");
+
     FILE *wave_file;
-    //setup PWM hardware for a Class D style audio output
-    PWMout.period(1.0/400000.0);
-    // wait until connected to a USB device
-    while(!msd.connect()) {
-        Thread::wait(750);
-    }
     while(1) {
         {
             //Lighthouse demo with foghorn
             Thread thread(lighthouse); //Start LED effect thread
             for(int i=0; i<4; ++i) {
                 //open wav file and play it
-                wave_file=fopen("/usb/foghorn.wav","r");
+                wave_file=fopen("/sd/foghorn.wav","r");
                 waver.play(wave_file); //Plays (*.wav file
                 fclose(wave_file);
                 Thread::wait(1925);
@@ -174,7 +173,7 @@ int main()
             //Arc Welding with sound
             Thread thread(welding);
             //open wav file and play it
-            wave_file=fopen("/usb/welding.wav","r");
+            wave_file=fopen("/sd/welding.wav","r");
             waver.play(wave_file);
             fclose(wave_file);
             //end of welding demo;
@@ -185,7 +184,7 @@ int main()
             //code block forces thread out of scope
             Thread thread(police);
             //open wav file and play it
-            wave_file=fopen("/usb/emgsiren.wav","r");
+            wave_file=fopen("/sd/emgsiren.wav","r");
             waver.play(wave_file);
             fclose(wave_file);
             //end of police light demo;
@@ -195,7 +194,7 @@ int main()
             //Fire with sound
             Thread thread(fire);
             //open wav file and play it
-            wave_file=fopen("/usb/fire.wav","r");
+            wave_file=fopen("/sd/fire.wav","r");
             waver.play(wave_file);
             fclose(wave_file);
             //end of fire demo;
@@ -206,7 +205,7 @@ int main()
             //RR Crossing Lights with Signal Bells
             Thread thread(rrcrossing);
             //open wav file and play it
-            wave_file=fopen("/usb/SignalBell.wav","r");
+            wave_file=fopen("/sd/SignalBell.wav","r");
             waver.play(wave_file);
             fclose(wave_file);
             //end of railroad crossing demo;
