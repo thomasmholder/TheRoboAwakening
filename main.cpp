@@ -1,9 +1,10 @@
 #include "Mutex.h"
 #include "mbed.h"
 #include "Motor.h"
+#include "speaker.hpp"
 #include "rtos.h"
 
-PwmOut speaker(p24);
+Speaker mySpeaker(p24);
 
 DigitalIn button(p20);
 
@@ -16,13 +17,18 @@ Mutex sonar_mutex;
 
 DigitalOut led(LED1);
 
-PwmOut MotorASpeed(p22);
-DigitalOut MotorAForward(p15);
-DigitalOut MotorAReverse(p16);
+//PwmOut MotorASpeed(p22);
+//DigitalOut MotorAForward(p15);
+//DigitalOut MotorAReverse(p16);
+Motor motorA(p22,p15,p16);
 
-PwmOut MotorBSpeed(p23);
-DigitalOut MotorBForward(p17);
-DigitalOut MotorBReverse(p18);
+//PwmOut MotorBSpeed(p23);
+//DigitalOut MotorBForward(p17);
+//DigitalOut MotorBReverse(p18);
+Motor motorB(p23,p17,p18);
+
+bool alarming;
+Mutex alarmState;
 
 
 //Use a PWM output to enable dimming
@@ -51,25 +57,38 @@ void sonarReadFunc(void const *args) {
     }
 }
 
+void buttonFunc(void const *args) {
 
+}
+
+// m.speed(x) where -1.0 <= x <= 1.0
+void motorFunc(void const *args) {
+
+}
+
+
+void speakerFunc(void const *args) {
+
+}
 
 int main()
 {
+    alarming = false;
+
+    // Init sonar
     sonarTimer.reset();
     sonarTimer.start();
     while (sonarEcho==2) {};
     sonarTimer.stop();
     sonarCorrection = sonarTimer.read_us();
 
-
-
-
     Thread heartbeat_thread(heartbeat);
     Thread sonar_thread(sonarReadFunc);
-
+    Thread button_thread(buttonFunc);
+    Thread motor_thread(motorFunc);
+    Thread speaker_thread(speakerFunc);
 
     while(1) {
         Thread::wait(1000);
     }
-
 }
