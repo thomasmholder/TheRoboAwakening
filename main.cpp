@@ -9,6 +9,10 @@ DigitalIn button(p20);
 
 DigitalIn sonarEcho(p7);
 DigitalOut sonarTrigger(p6);
+Timer sonarTimer;
+int sonarDistance = 0;
+int sonarCorrection = 0;
+Mutex sonar_mutex;
 
 DigitalOut led(LED1);
 
@@ -32,13 +36,36 @@ void heartbeat(void const *args)
     Thread::wait(1000);
 }
 
+void sonarReadFunc(void const *args) {
+    while(1) {
+        sonarTrigger = 1;
+        sonarTimer.reset();
+        Thread::wait(0.01);
+        sonarTrigger = 0;
+        while (sonarEcho==0) {};
+        sonarTimer.start();
+        while (sonarEcho==1) {};
+        sonarTimer.stop();
+        sonarDistance = (sonarTimer.read_us()-sonarCorrection)/58.0;
+        Thread::wait(0.2);
+    }
+}
 
 
 
 int main()
 {
+    sonarTimer.reset();
+    sonarTimer.start();
+    while (sonarEcho==2) {};
+    sonarTimer.stop();
+    sonarCorrection = sonarTimer.read_us();
+
+
+
 
     Thread heartbeat_thread(heartbeat);
+    Thread sonar_thread(sonarReadFunc);
 
 
     while(1) {
