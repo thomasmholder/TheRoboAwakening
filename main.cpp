@@ -2,17 +2,17 @@
 #include "mbed.h"
 #include "Motor.h"
 #include "speaker.hpp"
+#include "ultrasonic.h"
 #include "rtos.h"
+#include <cstdlib>
 
 Speaker mySpeaker(p21);
 
 DigitalIn button(p20);
 
-DigitalIn sonarEcho(p7);
-DigitalOut sonarTrigger(p6);
-Timer sonarTimer;
+// DigitalIn sonarEcho(p7);
+// DigitalOut sonarTrigger(p6);
 int sonarDistance = 0;
-int sonarCorrection = 0;
 Mutex sonar_mutex;
 
 DigitalOut led(LED1);
@@ -41,6 +41,13 @@ char pwd [32] = "password"; // enter WiFi router password inside the quotes
 enum alarmState {ALARMING, BUTTONPRESSED, OFF};
 alarmState alarm;
 Mutex alarming_mutex;
+
+void dist(int distance) {
+    sonar_mutex.lock();
+    sonarDistance = distance; //in mm
+    sonar_mutex.unlock();
+}
+ultrasonic sonar(p6, p7, .1, 1, &dist);
 
 void dev_recv()
 {
@@ -194,34 +201,43 @@ void wifiFunc(void const *args) {
     // loop
 }
 
+class Watchdog {
+public:
+    // Load timeout value in watchdog timer and enable
+    void kick(float s) {
+        LPC_WDT->WDCLKSEL = 0x1;                // Set CLK src to PCLK
+        uint32_t clk = SystemCoreClock / 16;    // WD has a fixed /4 prescaler, PCLK default is /4
+        LPC_WDT->WDTC = s * (float)clk;
+        LPC_WDT->WDMOD = 0x3;                   // Enabled and Reset
+        kick();
+    }
+    // "kick" or "feed" the dog - reset the watchdog timer
+    // by writing this required bit pattern
+    void kick() {
+        LPC_WDT->WDFEED = 0xAA;
+        LPC_WDT->WDFEED = 0x55;
+    }
+};
+
+Watchdog wdt;
+
 void heartbeat(void const *args)
 {
-    led = 1;
-    Thread::wait(1000);
-    led = 0;
-    Thread::wait(1000);
-    // Set up watchdog here?
+    while(1) {
+        led = 1;
+        Thread::wait(1000);
+        led = 0;
+        Thread::wait(1000);
+        wdt.kick();
+    }
 }
 
 void sonarReadFunc(void const *args) {
     // Init sonar
-    sonarTimer.reset();
-    sonarTimer.start();
-    while (sonarEcho==2) {};
-    sonarTimer.stop();
-    sonarCorrection = sonarTimer.read_us();
+    sonar.startUpdates();
 
     while(1) {
-        sonarTrigger = 1;
-        sonarTimer.reset();
-        Thread::wait(0.01);
-        sonarTrigger = 0;
-        while (sonarEcho==0) {};
-        sonarTimer.start();
-        while (sonarEcho==1) {};
-        sonarTimer.stop();
-        sonarDistance = (sonarTimer.read_us()-sonarCorrection)/58.0;
-        Thread::wait(0.2);
+        sonar.checkDistance();
     }
 }
 
@@ -229,22 +245,32 @@ void buttonFunc(void const *args) {
 
 }
 
+
 // m.speed(x) where -1.0 <= x <= 1.0
 // 0.5 speed for 1 second is about 180 deg
 void motorFunc(void const *args) {
-    /*
-    while (alarm = ALARMING) {
-        float speedA = 1;
-        float speedB = 1;
-        if (sonarDistance <= 8) {
-            // Turn
-            motorA.speed(0.5);
-            motorB.speed(-0.5);
-            Thread::wait(1000);
-        } else {
+    srand(time(NULL));
+    while (1) {
+        //if (alarm = ALARMING) {
+            if (sonarDistance <= 200) {
+                // Turn, ignoring angles between -45 and 45
+                float deg = rand()*1./RAND_MAX*270.-135;
+                deg = (deg > 0) ? deg + 45 : deg - 45; 
+                
+                int duration = 1000*abs(deg)/180;
 
-        }
-    }*/
+                pc.printf("deg: %f; duration: %d\n\r", deg, duration);
+
+                motorA.speed((deg > 0) ? 0.5 : -0.5);
+                motorB.speed((deg > 0) ? -0.5 : 0.5);
+                Thread::wait(duration);
+            } else {
+                motorA.speed(0.75);
+                motorB.speed(0.75);
+                Thread::wait(100);
+            }
+        //}
+    }
 }
 
 void speakerFunc(void const *args) {
@@ -258,7 +284,10 @@ void speakerFunc(void const *args) {
 
 int main()
 {
+    wdt.kick(10.0);
     alarm = OFF;
+
+    button.mode(PullUp);
 
     Thread wifi_thread(wifiFunc);
     Thread heartbeat_thread(heartbeat);
