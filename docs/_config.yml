@@ -3,4 +3,4 @@ plugins:
 - jekyll-remote-theme # add this line to the plugins list if you already have one
 
 title: TheRoboAwakening
-description: An ECE4180 Final Project
+description: An ECE4180 Final Project by Thomas Holder, Daryl Dohner, and Jonathan Nativ.
